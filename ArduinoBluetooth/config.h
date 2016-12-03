@@ -1,0 +1,42 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Communication
+#define SERIAL_BAUDRATE 9600
+#define DEBUG_MSG_PERIOD_MS 500
+
+// Control Pins
+#define STEERING_SERVO_FRONT_PIN 9
+#define STEERING_SERVO_BACK_PIN 10
+#define MOTOR_SPEED_PIN 11
+//#define BIDIRECTIONAL_DRIVE
+#ifdef BIDIRECTIONAL_DRIVE
+  #define MOTOR_DIRECTION_PIN 4
+  enum MOTOR_DIRECTION {FORWARD=0, BACKWARD=1};
+#endif
+
+#define STEERING_SERVO_FRONT_MIN 50
+#define STEERING_SERVO_FRONT_MAX 130
+
+#define STEERING_SERVO_BACK_MIN 50
+#define STEERING_SERVO_BACK_MAX 130
+
+#define SERIAL_EXPECTED_UPDATE_PERIOD_MS 16
+#define SERIAL_UPDATE_TIMOUT_MS 200
+
+// Indicators
+#define LEFT_TURN_LED_PIN 6
+#define RIGHT_TURN_LED_PIN 5
+#define FORWARDSPEED_LED_PIN 3
+#ifdef BIDIRECTIONAL_DRIVE
+  #define BACKWARDSPEED_LED_PIN 3
+#endif
+
+typedef int16_t SteerAngle;
+#define STEERING_ANGLE_MAX 1000
+typedef int16_t DriveSpeed;
+#define DRIVE_SPEED_MAX 1000
+const size_t EXPECTED_COMMAND_SIZE = sizeof(SteerAngle) + sizeof(DriveSpeed);
+
+
+#endif
