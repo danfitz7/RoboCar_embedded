@@ -1,4 +1,4 @@
-//#define PRINT_DRIVE_DEBUG
+#define PRINT_DRIVE_DEBUG
 //#define PRINT_LED_DEBUG
 //#define LED_DEBUG
 
@@ -35,10 +35,6 @@ MotorServo driveMotorCH2Servo;
 
 #define EYE_LED_PIN 20
 
-// TODO: what our our physical min/max turning angles?
-#define STEERING_ANGLE_MIN_DEG -45.0f
-#define STEERING_ANGLE_MAX_DEG 45.0f
-
 // Abstract current speeds (abstract units between physical min and max, [-1.0f, 1.0f])
 double drive_speed = 0.0f;
 double turn_speed = 0.0f;
@@ -62,10 +58,10 @@ double angle_error_degrees = 0.0f;   // turn left/right to adjust angle to targe
 #define SERIAL_BAUD 9600
 PacketSerial packetSerial;
 #define DISCONNECT_TIMEOUT_MS 1000 // Assume disconnection after this much time, in ms.
-bool idleAndWait = true;
+//bool idleAndWait = true;
 
 // NOTE: Could be physically dangerous for a mobile robot to keep driving too long without feedback.
-unsigned long lastCommandTime = 0;
+unsigned long long lastCommandTime = 0;
 bool newValuesReceived = false;
 
 // We receive 2 numbers, (distance error, angle error, each 2 bytes)
@@ -151,7 +147,8 @@ void spamID() {
   }
   Serial.println("ARDUINO");
   startPIDs();
-  idleAndWait = false;
+  
+//  idleAndWait = false;
   lastCommandTime = millis();
 }
 
@@ -327,6 +324,23 @@ void testServo(MotorServo* servo, int neutral_angle = 90, int angle_range=90){
   int deg = 0;
   int min_angle = neutral_angle - angle_range;
   int max_angle = neutral_angle + angle_range;
+  
+  for (deg = neutral_angle; deg<=max_angle;deg++){
+    servo->write(deg);
+    Serial.print('\t');
+    Serial.println(deg);
+    delay(100);
+  }
+  delay(1000);
+  
+  for (deg = max_angle; deg>=neutral_angle;deg--){
+    servo->write(deg);
+    Serial.print('\t');
+    Serial.println(deg);
+    delay(100);
+  }
+  delay(1000);
+
   for (deg = neutral_angle; deg>=min_angle;deg--){
     servo->write(deg);
     Serial.print('\t');
@@ -334,16 +348,8 @@ void testServo(MotorServo* servo, int neutral_angle = 90, int angle_range=90){
     delay(100);
   }
   delay(1000);
-  
-  for (deg = min_angle; deg<=max_angle;deg++){
-    servo->write(deg);
-    Serial.print('\t');
-    Serial.println(deg);
-    delay(100);
-  }
-  delay(1000);
-  
-  for (deg=max_angle;deg>=neutral_angle;deg--){
+
+  for (deg=min_angle;deg<=neutral_angle;deg++){
     servo->write(deg);
     Serial.print('\t');
     Serial.println(deg);
@@ -387,9 +393,9 @@ void testEye(){
   testLEDFade(EYE_LED_PIN);
 }
 void testAll(){
-  //testFrontSteering();
-  //testBackSteering();
-  //testEye();
+  testFrontSteering();
+  testBackSteering();
+  testEye();
   testDriveMotor();
 }
 
@@ -404,25 +410,25 @@ void loop() {
 
   // Communication disruption timout
   if (millis() - lastCommandTime >= DISCONNECT_TIMEOUT_MS) {
-    if (!idleAndWait){
-      stopAll();
-      idleAndWait = true;
+//    if (!idleAndWait){
+//     idleAndWait = true;
       spamID();
-    }
+//    }
   }else{
-    if (newValuesReceived){
-      // No point calculating anything if we don't have feedback
-      //  if (received_feedback){
-      // calculate target speeds for acceleration/deceleration
-      updatePIDs();
-    
-      #ifdef LED_DEBUG
-        updateDebugLEDs();
-      #endif
-    
-      updateDriving();
+//    if (!idleAndeWait){
+      if (newValuesReceived){
+        // No point calculating anything if we don't have feedback
+        //  if (received_feedback){
+        // calculate target speeds for acceleration/deceleration
+        updatePIDs();
+        #ifdef LED_DEBUG
+          updateDebugLEDs();
+        #endif
+      
+        updateDriving();
     }
+//    }
   }
 
-  delay(10);
+  //delay(10);
 }
