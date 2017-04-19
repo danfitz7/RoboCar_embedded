@@ -1,6 +1,7 @@
-#define PRINT_DRIVE_DEBUG
+#define PRINT_COBS_DEBUG
 //#define PRINT_LED_DEBUG
 //#define LED_DEBUG
+//#define PRINT_DEBUG
 
 #ifdef CORE_TEENSY
   #include <PWMServo.h>
@@ -10,10 +11,10 @@
   typedef Servo MotorServo;
 #endif
 
-#define FRONT_STEERING_SERVO_PWM_MIN_US 9000
-#define FRONT_STEERING_SERVO_PWM_MAX_US 2100
+#define FRONT_STEERING_SERVO_PWM_MIN_US 1000
+#define FRONT_STEERING_SERVO_PWM_MAX_US 2000
 #define FRONT_STEERING_SERVO_ANGLE_NEUTRAL_DEG 90
-#define FRONT_STEERING_SERVO_ANGLE_RANGE_DEG 90
+#define FRONT_STEERING_SERVO_ANGLE_RANGE_DEG 60
 #define FRONT_STEERING_SERVO_PIN 23
 MotorServo frontSteeringServo;
 
@@ -23,6 +24,7 @@ MotorServo frontSteeringServo;
 #define BACK_STEERING_SERVO_ANGLE_RANGE_DEG 90
 #define BACK_STEERING_SERVO_PIN 22
 MotorServo backSteeringServo;
+//#define INVERT_BACK_STEERING
 
 #define DRIVE_MOTOR_SPEED_PIN 5
 #define DRIVE_MOTOR_DIR_PIN 6
@@ -57,7 +59,7 @@ double angle_error_degrees = 0.0f;   // turn left/right to adjust angle to targe
 #include "PacketSerial.h"
 #define SERIAL_BAUD 9600
 PacketSerial packetSerial;
-#define DISCONNECT_TIMEOUT_MS 1000 // Assume disconnection after this much time, in ms.
+#define DISCONNECT_TIMEOUT_MS 5000 // Assume disconnection after this much time, in ms.
 //bool idleAndWait = true;
 
 // NOTE: Could be physically dangerous for a mobile robot to keep driving too long without feedback.
@@ -72,7 +74,7 @@ const double COMMUNICATION_ROTATION_UNIT_TO_DEGREES = (180.0f / COMMUNICATION_IN
 
 void packetHandler (const uint8_t* buf, size_t s) {
 
-  #ifdef PRINT_DRIVE_DEBUG
+  #ifdef PRINT_COBS_DEBUG
     String debugString ="Drive<";
   #endif
 
@@ -97,6 +99,7 @@ void packetHandler (const uint8_t* buf, size_t s) {
     #endif
 
     newValuesReceived = true;
+    lastCommandTime = millis();
   }
 }
 void setupSerial(){
@@ -180,13 +183,13 @@ void toggle_orange_led() {
 #define PID_SAMPLE_TIME_MS 17 // 60fps = 17ms/frame
 
 // Position/drive/speed control
-double distance_p = 0.001f;
+double distance_p = 0.0005f;
 double distance_i = 0.000f;
 double distance_d = 0.000f;//0.0001 still too fast
 double distance_setpoint_mm = 0.0f; // The actual following goal distance is already subtracted from the tracker distance in Unity 
 
 // Angle/rotation/turning control
-double angle_p = 0.01f;
+double angle_p = 0.05f;
 double angle_i = 0.000f;
 double angle_d = 0.000f;
 double angle_setpoint_deg = 0.0f;
@@ -249,6 +252,9 @@ void setup() {
   #ifdef LED_DEBUG
     setupDebugLEDs();
   #endif
+
+  drive(0.0f);
+  turn(0.0f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,11 +306,19 @@ void drive(double drive_velocity){
 
 void turn(double turn_velocity){
   frontSteeringServo.write(FRONT_STEERING_SERVO_ANGLE_NEUTRAL_DEG + (turn_velocity * FRONT_STEERING_SERVO_ANGLE_RANGE_DEG));
-  frontSteeringServo.write(BACK_STEERING_SERVO_ANGLE_NEUTRAL_DEG + (turn_velocity * BACK_STEERING_SERVO_ANGLE_RANGE_DEG));
+  backSteeringServo.write(BACK_STEERING_SERVO_ANGLE_NEUTRAL_DEG 
+  #ifdef INVERT_BACK_STEERING
+  - 
+  #else
+  +
+  #endif
+  (turn_velocity * BACK_STEERING_SERVO_ANGLE_RANGE_DEG));
 }
 
 void updateDriving(){
-  Serial.println("D" + String(drive_speed) + "\t" + String(turn_speed));
+  #ifdef PRINT_DEBUG
+    Serial.println("D" + String(drive_speed) + "\t" + String(turn_speed));
+  #endif
   drive(drive_speed);
   turn(turn_speed);
 }
@@ -365,6 +379,35 @@ void testBackSteering(){
   Serial.println("Test back steering...");
   testServo(&backSteeringServo, BACK_STEERING_SERVO_ANGLE_NEUTRAL_DEG, BACK_STEERING_SERVO_ANGLE_RANGE_DEG);
 }
+void testTurn(){
+  double steerAngle = 0.0f;
+  const double inc = 0.05;
+  const int delayTimeMs = 10;
+  Serial.println("Steering Test...");
+  for (steerAngle = 0.0f; steerAngle <= 1.0f; steerAngle += inc){
+    turn(steerAngle);
+    delay(delayTimeMs);
+    Serial.println("\t" + String(steerAngle));
+  }
+  delay(1000);
+  for (steerAngle = 1.0f; steerAngle >=0.0f; steerAngle -= inc){
+    turn(steerAngle);
+    delay(delayTimeMs);
+    Serial.println("\t" + String(steerAngle));
+  }
+  delay(1000);
+  for (steerAngle = 0.0f; steerAngle >=-1.0f; steerAngle -= inc){
+    turn(steerAngle);
+    delay(delayTimeMs);
+    Serial.println("\t" + String(steerAngle));
+  }
+  delay(1000);
+    for (steerAngle = -1.0f; steerAngle <= 0.0f; steerAngle += inc){
+    turn(steerAngle);
+    delay(delayTimeMs);
+    Serial.println("\t" + String(steerAngle));
+  }
+}
 void testDriveMotor(){
   int inc = 1;
   Serial.println("Test drive motor...");
@@ -395,8 +438,9 @@ void testEye(){
 void testAll(){
   testFrontSteering();
   testBackSteering();
-  testEye();
-  testDriveMotor();
+  testTurn();
+  //testEye();
+  //testDriveMotor();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
